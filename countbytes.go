@@ -8,6 +8,8 @@ package main
 import (
     "bufio"
     "os"
+    "os/signal"
+    "syscall"
     "io"
     "log"
     "fmt"
@@ -36,10 +38,22 @@ func (pt *PassThru) Read(p []byte) (int, error) {
   return n, err
 }
 
+func captureExit () {
+  c := make(chan os.Signal, 1)
+  signal.Notify(c, os.Interrupt)
+  signal.Notify(c, syscall.SIGTERM)
+  go func(){
+    <-c
+    fmt.Println("") // Print empty line to avoid ANSI oddities
+    os.Exit(1)
+  }()
+}
+
 func main () {
   var src io.Reader
   reader := bufio.NewReader(os.Stdin)
   src = &PassThru{Reader: reader}
+  captureExit()
   for {
     buf := make([]byte, 0, 4*1024) // Empty byte array of len 0, cap 4096
     v, err := src.Read(buf[:cap(buf)])
